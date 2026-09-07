@@ -591,7 +591,7 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
                 </div>
 
                 <div class="cook-mode-panel cook-finish" id="cook-finish" hidden>
-                    <strong><?php esc_html_e( 'Log this cook', 'cookbook' ); ?></strong>
+                    <strong><?php esc_html_e( 'Mark this recipe as cooked?', 'cookbook' ); ?></strong>
                     <p class="help"><?php esc_html_e( 'Save the date and any notes from this cook session.', 'cookbook' ); ?></p>
                     <form id="cook-finish-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                         <?php wp_nonce_field( 'cookbook_log_cooked' ); ?>
@@ -602,7 +602,7 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
                         <input id="cook-finish-date" type="date" name="cooked_date" value="<?php echo esc_attr( $today_date ); ?>" max="<?php echo esc_attr( $today_date ); ?>">
                         <label for="cook-finish-note"><?php esc_html_e( 'Notes', 'cookbook' ); ?></label>
                         <textarea id="cook-finish-note" name="cooked_note" rows="3" placeholder="<?php esc_attr_e( 'Tweaks, timing, reactions', 'cookbook' ); ?>"></textarea>
-                        <button class="btn fresh" type="submit"><?php esc_html_e( 'Save to history', 'cookbook' ); ?></button>
+                        <button class="btn fresh" type="submit"><?php esc_html_e( 'Mark as cooked', 'cookbook' ); ?></button>
                         <button class="btn secondary" type="button" id="cook-finish-dismiss"><?php esc_html_e( 'Not now', 'cookbook' ); ?></button>
                     </form>
                 </div>
@@ -731,6 +731,8 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
     const cookStateKey = 'cookbook:cook-mode:<?php echo (int) $id; ?>';
     let activeCookStep = 0;
     let cookFinishDismissed = false;
+    let cookFinishPrompted = false;
+    let closeAfterCookFinishDismiss = false;
     let wakeLock = null;
 
     document.addEventListener('keydown', (e) => {
@@ -992,6 +994,7 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
             const checkedSteps = Array.isArray(state.checkedSteps) ? state.checkedSteps : [];
             const checkedIngredients = Array.isArray(state.checkedIngredients) ? state.checkedIngredients : [];
             cookFinishDismissed = !!state.finishDismissed;
+            cookFinishPrompted = !!state.finishPrompted;
             cookStepChecks.forEach((check, index) => {
                 check.checked = checkedSteps.indexOf(index) >= 0;
             });
@@ -1001,6 +1004,7 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
         } catch (e) {
             activeCookStep = 0;
             cookFinishDismissed = false;
+            cookFinishPrompted = false;
         }
     }
 
@@ -1017,9 +1021,33 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
                     if (check.checked) out.push(index);
                     return out;
                 }, []),
-                finishDismissed: cookFinishDismissed
+                finishDismissed: cookFinishDismissed,
+                finishPrompted: cookFinishPrompted
             }));
         } catch (e) {}
+    }
+
+    function hasCookProgress() {
+        return activeCookStep > 0 ||
+            cookStepChecks.some(check => check.checked) ||
+            cookIngredientChecks.some(check => check.checked);
+    }
+
+    function focusCookFinishForm() {
+        if (!cookFinish) return;
+        cookFinish.scrollIntoView({ block: 'nearest' });
+        const date = cookFinish.querySelector('input[type="date"]');
+        if (date) date.focus({ preventScroll: true });
+    }
+
+    function showCookFinishPrompt(closeAfterDismiss) {
+        if (!cookFinish) return false;
+        cookFinishDismissed = false;
+        cookFinishPrompted = true;
+        closeAfterCookFinishDismiss = !!closeAfterDismiss;
+        updateCookState();
+        focusCookFinishForm();
+        return true;
     }
 
     function updateCookState() {
@@ -1027,6 +1055,8 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
         const completed = cookStepChecks.filter(check => check.checked).length;
         if (completed < cookStepRows.length) {
             cookFinishDismissed = false;
+        } else {
+            cookFinishPrompted = true;
         }
         cookStepRows.forEach((row, index) => {
             row.classList.toggle('is-active', index === activeCookStep);
@@ -1047,7 +1077,7 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
             cookNext.textContent = onLastStep ? cookStrings.finish : cookStrings.next;
         }
         if (cookFinish) {
-            cookFinish.hidden = completed < cookStepRows.length || cookFinishDismissed;
+            cookFinish.hidden = !cookFinishPrompted || cookFinishDismissed;
         }
         if (cookProgress) {
             cookProgress.max = cookStepRows.length;
@@ -1083,6 +1113,10 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
         if (cookStepChecks[activeCookStep]) {
             cookStepChecks[activeCookStep].checked = true;
         }
+        if (activeCookStep >= cookStepRows.length - 1) {
+            showCookFinishPrompt(false);
+            return;
+        }
         setCookStep(activeCookStep + 1, focusStep);
     }
 
@@ -1115,6 +1149,16 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
 
     function closeCookMode() {
         if (!cookMode) return;
+        if (hasCookProgress() && cookFinish && cookFinish.hidden && showCookFinishPrompt(true)) return;
+        cookMode.hidden = true;
+        document.body.classList.remove('cook-mode-active');
+        releaseWakeLock();
+        if (cookOpen) cookOpen.focus();
+    }
+
+    function forceCloseCookMode() {
+        if (!cookMode) return;
+        closeAfterCookFinishDismiss = false;
         cookMode.hidden = true;
         document.body.classList.remove('cook-mode-active');
         releaseWakeLock();
@@ -1137,6 +1181,8 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
             cookStepChecks.forEach(check => { check.checked = false; });
             cookIngredientChecks.forEach(check => { check.checked = false; });
             cookFinishDismissed = false;
+            cookFinishPrompted = false;
+            closeAfterCookFinishDismiss = false;
             setCookStep(0, true);
         });
     }
@@ -1144,6 +1190,9 @@ $render_ingredient_row = function( array $ing, int $i ) use ( $preference, $id )
         cookFinishDismiss.addEventListener('click', () => {
             cookFinishDismissed = true;
             updateCookState();
+            if (closeAfterCookFinishDismiss) {
+                forceCloseCookMode();
+            }
         });
     }
     if (cookFinishForm) {

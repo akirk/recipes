@@ -1,5 +1,5 @@
 <?php
-
+// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key,WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Cooked history is intentionally ordered and filtered by post meta.
 namespace Cookbook;
 
 if ( ! defined( 'ABSPATH' ) ) {

@@ -38,7 +38,6 @@ spl_autoload_register( function( $class ) {
 
 add_action( 'init', function() {
     $app = new App();
-    load_plugin_textdomain( 'cookbook', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
     $app->init();
 } );
 

@@ -1566,7 +1566,7 @@ msgid "Reset"
 msgstr ""
 
 #: templates/recipe.php:562
-msgid "Log this cook"
+msgid "Mark this recipe as cooked?"
 msgstr ""
 
 #: templates/recipe.php:563
@@ -1578,7 +1578,7 @@ msgid "Tweaks, timing, reactions"
 msgstr ""
 
 #: templates/recipe.php:573
-msgid "Save to history"
+msgid "Mark as cooked"
 msgstr ""
 
 #: templates/recipe.php:574

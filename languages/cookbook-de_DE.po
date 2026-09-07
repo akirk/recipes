@@ -1656,8 +1656,8 @@ msgid "Reset"
 msgstr "Zurücksetzen"
 
 #: templates/recipe.php:562
-msgid "Log this cook"
-msgstr "Dieses Kochen protokollieren"
+msgid "Mark this recipe as cooked?"
+msgstr "Dieses Rezept als gekocht markieren?"
 
 #: templates/recipe.php:563
 msgid "Save the date and any notes from this cook session."
@@ -1668,8 +1668,8 @@ msgid "Tweaks, timing, reactions"
 msgstr "Anpassungen, Timing, Reaktionen"
 
 #: templates/recipe.php:573
-msgid "Save to history"
-msgstr "Im Verlauf speichern"
+msgid "Mark as cooked"
+msgstr "Als gekocht markieren"
 
 #: templates/recipe.php:574
 msgid "Not now"
